@@ -1,27 +1,26 @@
 package listeners;
 
-import static testrail.TestRailClient.customResultFields;
-import static testrail.TestRailClient.run;
-import static testrail.TestRailClient.testRail;
+import static listeners.MyISuiteListener.writer;
 
-import com.codepine.api.testrail.model.Result;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import io.qameta.allure.TmsLink;
-import io.qameta.allure.listener.TestLifecycleListener;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.SneakyThrows;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-public class MyTestListener implements ITestListener, TestLifecycleListener {
+public class MyTestListener implements ITestListener {
 
+  //get TMS link (test case id in TestRail) from @TmsLink annotation
   private int getTmsLink(ITestResult result) {
     TmsLink annotation = result.getMethod().getConstructorOrMethod().getMethod()
         .getAnnotation(TmsLink.class);
     return Integer.parseInt(annotation.value());
   }
 
+  //get defect list from the @Issue and @Issues annotations
   private List<String> getDefects(ITestResult result) {
     List<String> defects = new ArrayList<>();
     Issue issue = result.getMethod().getConstructorOrMethod().getMethod()
@@ -40,35 +39,33 @@ public class MyTestListener implements ITestListener, TestLifecycleListener {
     return defects;
   }
 
-  //1-passed
-  //5-failed
 
-  public void onTestSuccess(ITestResult result) {
-    int caseId = getTmsLink(result);
-    testRail.results()
-        .addForCase(run.getId(), caseId, new Result().setStatusId(1), customResultFields).execute();
+  @SneakyThrows
+  private synchronized void writeResultsToFile(String caseId, String status, String failureMessage,
+      List<String> defectsList) {
+    String defectsToWrite = defectsList != null ? String.join(",", defectsList) : null;
+    String stringToWrite = String.join(",", caseId, status, failureMessage, defectsToWrite);
+    writer.write(stringToWrite + "\n");
   }
 
+  @SneakyThrows
+  public void onTestSuccess(ITestResult result) {
+    String caseId = String.valueOf(getTmsLink(result));
+    writeResultsToFile(caseId, "1", null, null);
+  }
+
+  @SneakyThrows
   public void onTestFailure(ITestResult result) {
-
-    //set [failed] status
-    Result tmsTestResult = new Result().setStatusId(5);
-
-    //add failure message
-    int caseId = getTmsLink(result);
+    String caseId = String.valueOf(getTmsLink(result));
     String failMassage = result.getThrowable().getMessage();
-    tmsTestResult.setComment(failMassage);
-
-    //add defects if exist
-    List<String> defects = getDefects(result);
-    if (defects.size() > 0) {
-      tmsTestResult.setDefects(defects);
-      //for allure (if we have defects linked to test and test was failed - in allure report we mark such test as skipped)
+    List<String> issueLinks = getDefects(result);
+    List<String> defects = issueLinks.size() > 0 ? issueLinks : null;
+    writeResultsToFile(caseId, "5", failMassage, defects);
+    //for allure (if we have defects linked to test and test was failed - in allure report we mark such test as skipped)
+    if (issueLinks.size() > 0) {
       result.setStatus(3);
     }
 
-    testRail.results()
-        .addForCase(run.getId(), caseId, tmsTestResult, customResultFields).execute();
   }
 
 }

@@ -5,6 +5,7 @@ import com.codepine.api.testrail.model.Project;
 import com.codepine.api.testrail.model.ResultField;
 import com.codepine.api.testrail.model.Run;
 import com.codepine.api.testrail.model.Suite;
+import java.time.LocalDateTime;
 import java.util.List;
 
 public class TestRailClient {
@@ -26,7 +27,8 @@ public class TestRailClient {
                 "There is no section (suite) with name [Smoke suite]"));
 
     run = testRail.runs()
-        .add(project.getId(), new Run().setSuiteId(smokeSuite.getId()).setName("Smoke run"))
+        .add(project.getId(),
+            new Run().setSuiteId(smokeSuite.getId()).setName("Smoke run_" + LocalDateTime.now()))
         .execute();
 
     customResultFields = testRail.resultFields().list().execute();
