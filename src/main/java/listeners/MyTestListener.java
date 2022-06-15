@@ -8,13 +8,15 @@ import com.codepine.api.testrail.model.Result;
 import io.qameta.allure.Issue;
 import io.qameta.allure.Issues;
 import io.qameta.allure.TmsLink;
-import io.qameta.allure.listener.TestLifecycleListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 
-public class MyTestListener implements ITestListener, TestLifecycleListener {
+public class MyTestListener implements ITestListener {
+
+  public static long sum;
+
 
   private int getTmsLink(ITestResult result) {
     TmsLink annotation = result.getMethod().getConstructorOrMethod().getMethod()
@@ -45,8 +47,12 @@ public class MyTestListener implements ITestListener, TestLifecycleListener {
 
   public void onTestSuccess(ITestResult result) {
     int caseId = getTmsLink(result);
+
+    long startTime = System.nanoTime();
     testRail.results()
         .addForCase(run.getId(), caseId, new Result().setStatusId(1), customResultFields).execute();
+    long endTime = System.nanoTime();
+    sum = sum + (endTime - startTime)/1000000;
   }
 
   public void onTestFailure(ITestResult result) {
@@ -67,8 +73,11 @@ public class MyTestListener implements ITestListener, TestLifecycleListener {
       result.setStatus(3);
     }
 
+    long startTime = System.nanoTime();
     testRail.results()
         .addForCase(run.getId(), caseId, tmsTestResult, customResultFields).execute();
+    long endTime = System.nanoTime();
+    sum = sum + (endTime - startTime)/1000000;
   }
 
 }
